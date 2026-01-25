@@ -23,6 +23,9 @@ class TestRecipesModel(unittest.TestCase):
     def test_delete(self):
         self.assertEqual(self.model.delete(0),True)
 
+    def test_load(self):
+        pass
+
 class TestIngredientsModel(unittest.TestCase):
     model = IngredientsModel()
 
@@ -46,16 +49,19 @@ class TestIngredientsModel(unittest.TestCase):
     def test_delete(self):
         self.assertEqual(self.model.delete(2),True)
 
+    def test_load(self):
+        pass
+
 class TestStepsModel(unittest.TestCase):
     model = StepsModel()
 
     def setUp(self):
-        self.model.create(0,1,"step details")
-        self.model.create(1,2,"step details")
-        self.model.create(2,3,"step details")
+        self.model.create(0,1,"step details",1)
+        self.model.create(1,2,"step details",1)
+        self.model.create(2,3,"step details",1)
 
     def test_create(self):
-        self.assertEqual(self.model.create(3,4,"steps details"),Step(3,4,"steps details"))
+        self.assertEqual(self.model.create(3,4,"steps details",1),Step(3,4,"steps details"))
 
     def test_read(self):
         self.assertEqual(self.model.read(1),Step(1,2,"step details"))
@@ -66,6 +72,9 @@ class TestStepsModel(unittest.TestCase):
 
     def test_delete(self):
         self.assertEqual(self.model.delete(0),True)
+
+    def test_load(self):
+        pass
 
 if __name__ == "__main__":
     unittest.main()

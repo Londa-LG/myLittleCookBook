@@ -1,4 +1,5 @@
 import os
+import sqlite3
 import hashlib
 from typing import List
 from dataclasses import dataclass
@@ -6,6 +7,7 @@ from dataclasses import dataclass
 
 @dataclass
 class User:
+    pk : int
     username: str
     password: str
 
@@ -13,165 +15,192 @@ class User:
 class Ingredient:
     pk: int
     name: str
-    size: float
+    size: int
+    recipe_pk: int
 
 @dataclass
 class Step:
     pk: int
     count: int
     details: str
+    recipe_pk: int
 
 @dataclass
 class Recipe:
     pk: int
+    name: str
     summary: str
     category: str
-    steps: List[int]
-    ingredients: List[int]
 
 class Model:
-    def save(self):
-        pass
+    table = ""
+
+    def __init__(self):
+        self.data = {}
+        self.connection = sqlite3.connect("app.db")
+        self.connection.execute("PRAGMA foreign_keys = ON")
+        self.cursor = self.connection.cursor()
 
     def load(self):
-        pass
+        print(self.cursor.fetchall())
 
-class UsersModel(Model):
-    Users = {}
-
-    def hash_password(self,password):
-    # 1. Generate a random salt
-        salt = os.urandom(16)
-    # 2. Hash the password with PBKDF2
-        hash_bytes = hashlib.pbkdf2_hmac(
-            'sha256',              # hash algorithm
-            password.encode(),     # convert to bytes
-            salt,                  # salt
-            100_000                # iterations (minimum recommended)
-        )
-    # 3. Store salt + hash (not the password)
-        password_hash = salt + hash_bytes
-        return password_hash
-
-    def create(self,pk,username,password):
-        hashed = hash_password(password)
-        new_user = User(pk,username,hashed)
-        self.Users[pk] = new_user
-        return new_user
-
-    def read(self,pk):
-        if pk not in self.Users:
-            print("No such ingredient")
-        else:
-            return self.Users[pk]
-
-    def update(self,pk,new_pk,username,password):
-        if pk not in Users:
-            print("No such ingredient")
-        else:
-            self.Users[pk].username = username
-            self.Users[pk].password = password
-            self.Users[pk].pk = new_pk
-            return self.Users[new_pk]
-
-    def delete(self,pk):
-        if pk not in self.Users:
-            print("No such User")
-        else:
-            del Users[pk]
-            return True
-
+    def initDatabase(self):
+        self.cursor.execute("""
+            CREATE TABLE Recipes(
+                pk INTEGER PRIMARY KEY,
+                name TEXT,
+                summary TEXT,
+                category TEXT
+            )
+        """)
+        self.cursor.execute("""
+            CREATE TABLE Steps(
+                pk INTEGER PRIMARY KEY,
+                count INTEGER,
+                details TEXT,
+                recipe_pk INTEGER NOT NULL,
+                FOREIGN KEY (recipe_pk) REFERENCES Recipes(pk)
+            )
+        """)
+        self.cursor.execute("""
+            CREATE TABLE Ingredients(
+                pk INTEGER PRIMARY KEY,
+                name TEXT,
+                size INTEGER,
+                recipe_pk INTEGER NOT NULL,
+                FOREIGN KEY (recipe_pk) REFERENCES Recipes(pk)
+            )
+        """)
 
 class StepsModel(Model):
-    Steps = {}
+    table = "Steps"
+    def __init__(self):
+        super().__init__();
 
-    def create(self,pk,count,details):
-        new_step = Step(pk,count,details)
-        self.Steps[pk] = new_step
+    def save(self,steps_obj):
+        self.cursor.execute(
+            "INSERT INTO Steps (count,details,recipe_pk) VALUES(?,?,?)",
+            (steps_obj.count,steps_obj.details,steps_obj.recipe_pk)
+        )
+        self.connection.commit()
+
+    def create(self,pk,count,details,recipe_pk):
+        new_step = Step(pk,count,details,recipe_pk)
+        self.data[pk] = new_step
         return new_step
 
     def read(self,pk):
-        if pk not in self.Steps:
+        if pk not in self.data:
             print("No such ingredient")
         else:
-            return self.Steps[pk]
+            return self.data[pk]
 
-    def update(self,pk,new_pk,count,details):
-        if pk not in self.Steps:
+    def read_all(self):
+        return list(self.data.values())
+
+    def update(self,pk,new_pk,count,details,recipe_pk):
+        if pk not in self.data:
             print("No such cooking step")
         else:
-            self.Steps[pk].count = count
-            self.Steps[pk].details = details
-            self.Steps[pk].pk = new_pk
-            return self.Steps[pk]
+            self.data[pk].count = count
+            self.data[pk].details = details
+            self.data[pk].recipe_pk = recipe_pk
+            self.data[pk].pk = new_pk
+            return self.data[pk]
 
     def delete(self,pk):
-        if pk not in self.Steps:
+        if pk not in self.data:
             print("No such ingredient")
         else:
-            del self.Steps[pk]
+            del self.data[pk]
             return True
 
 
 class IngredientsModel(Model):
-    Ingredients = {}
+    table = "Ingredients"
 
-    def create(self,pk,name,size):
-        new_ing = Ingredient(pk,name,size)
-        self.Ingredients[pk] = new_ing
+    def __init__(self):
+        super().__init__();
+
+    def save(self,ingre_obj):
+        self.cursor.execute(
+            "INSERT INTO Ingredients (name,size,recipe_pk) VALUES(?,?,?)",
+            (ingre_obj.name,ingre_obj.size,ingre_obj.recipe_pk)
+        )
+        self.connection.commit()
+
+    def create(self,pk,name,size,recipe_pk):
+        new_ing = Ingredient(pk,name,size,recipe_pk)
+        self.data[pk] = new_ing
         return new_ing
 
     def read(self,pk):
-        if pk not in self.Ingredients:
+        if pk not in self.data:
             print("No such ingredient")
         else:
-            return self.Ingredients[pk]
+            return self.data[pk]
 
-    def update(self,pk,new_pk,name,size):
-        if pk not in self.Ingredients:
+    def read_all(self):
+        return list(self.data.values())
+
+    def update(self,pk,new_pk,name,size,recipe_pk):
+        if pk not in self.data:
             print("No such ingredient")
         else:
-            self.Ingredients[pk].name = name
-            self.Ingredients[pk].size = size
-            self.Ingredients[pk].pk = new_pk
-            return self.Ingredients[new_pk]
+            self.data[pk].name = name
+            self.data[pk].size = size
+            self.data[pk].recipe_pk = recipe_pk
+            self.data[pk].pk = new_pk
+            return self.data[new_pk]
 
     def delete(self,pk):
-        if pk not in self.Ingredients:
+        if pk not in self.data:
             print("No such ingredient")
         else:
-            del self.Ingredients[pk]
+            del self.data[pk]
             return True
 
 class RecipesModel(Model):
-    Recipes = {}
+    table = "Recipes"
 
-    def create(self,pk,summary,category,steps,ingredients):
-        new_recipe = Recipe(pk,summary,category,steps,ingredients)
-        self.Recipes[pk] = new_recipe
+    def __init__(self):
+        super().__init__();
+
+    def save(self,recipe_obj):
+        self.cursor.execute(
+            "INSERT INTO Recipes (name,summary,category) VALUES(?,?,?)",
+            (recipe_obj.name,recipe_obj.summary,recipe_obj.category)
+        )
+        self.connection.commit()
+
+    def create(self,pk,name,summary,category,steps,ingredients):
+        new_recipe = Recipe(pk,name,summary,category,steps,ingredients)
+        self.data[pk] = new_recipe
         return new_recipe
 
     def read(self,pk):
-        if pk not in self.Recipes:
+        if pk not in self.data:
             print("No such recipe")
         else:
-            return self.Recipes[pk]
+            return self.data[pk]
+
+    def read_all(self):
+        return list(self.data.values())
 
     def update(self,pk,new_pk,summary,category,steps,ingredients):
-        if pk not in self.Recipes:
+        if pk not in self.data:
             print("No such recipe")
         else:
-            self.Recipes[pk].category = category
-            self.Recipes[pk].summary = summary
-            self.Recipes[pk].steps = steps
-            self.Recipes[pk].ingredients = ingredients
-            self.Recipes[pk].pk = new_pk
-            return self.Recipes[new_pk]
+            self.data[pk].category = category
+            self.data[pk].summary = summary
+            self.data[pk].steps = steps
+            self.data[pk].ingredients = ingredients
+            self.data[pk].pk = new_pk
+            return self.data[new_pk]
 
     def delete(self,pk):
-        if pk not in self.Recipes:
+        if pk not in self.data:
             print("No such recipe")
         else:
-            del self.Recipes[pk]
+            del self.data[pk]
             return True
-
